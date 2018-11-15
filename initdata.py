@@ -1,10 +1,10 @@
-# инициализировать данные для последующего сохранения в файлах
-# записи
-bob = {'name': 'Bob Smith', 'age': 42, 'pay': 30000, 'job': 'dev'}
-sue = {'name': 'Sue Jones', 'age': 45, 'pay': 40000, 'job': 'hdw'}
-tom = {'name': 'Tom',
-       'age': 50, 'pay': 0,
-       'job': None}
+from person import Person
+from manager import Manager
+
+bob = Person('Bob Smith', 42, 30000, 'software')
+sue = Person('Sue Jones', 45, 40000, 'hardware')
+tom = Manager('Tom', 50, 30000)
+
 # база данных
 db = {}
 db['bob'] = bob
