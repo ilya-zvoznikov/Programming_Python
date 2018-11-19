@@ -1,4 +1,4 @@
-#!venv\Scripts\python.exe
+#! venv/bin/python
 import cgi
 
 form = cgi.FieldStorage()  # парсинг данных формы
