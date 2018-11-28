@@ -17,3 +17,8 @@ def parent(pipein):
     while True:
         line = os.read(pipein, 32)
         print('Parent %d got [%s] at %s' % (os.getpid(), line, time.time()))
+
+
+pipein, pipeout = os.pipe()
+threading.Thread(target=child, args=(pipeout,)).start()
+parent(pipein)
