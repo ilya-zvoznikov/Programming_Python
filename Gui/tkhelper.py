@@ -19,4 +19,4 @@ def tkprinter(widgetname, full=False, width=28):
 
 
 if __name__ == '__main__':
-    tkprinter(Text)
+    tkprinter(Canvas)
