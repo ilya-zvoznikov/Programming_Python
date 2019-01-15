@@ -52,7 +52,7 @@ def viewer(imgdir, kind=Toplevel, numcols=None, height=300, width=300):
     numthumbs = len(thumbs)
     if not numcols:
         numcols = int(math.ceil(math.sqrt(numthumbs)))
-    numrows = int(math.ceil(numthubs / numcols))
+    numrows = int(math.ceil(numthumbs / numcols))
 
     linksize = max(thumbs[0][1].size)
     fullsize = (0, 0,                                # координаты верхнего левого угла
