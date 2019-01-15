@@ -1,4 +1,5 @@
 from tkinter import *
+import sys
 
 
 def tkprinter(widgetname, full=False, width=28):
@@ -12,7 +13,7 @@ def tkprinter(widgetname, full=False, width=28):
     w = widgetname()
     for key in w.config():
         print(length.format(key), end='')
-        if full:
+        if     full:
             for elem in w.config()[key]:
                 print(length.format(str(elem)), end='')
         print()

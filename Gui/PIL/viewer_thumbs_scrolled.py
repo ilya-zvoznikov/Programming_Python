@@ -14,7 +14,7 @@
 import sys, math
 from tkinter import *
 from PIL.ImageTk import PhotoImage
-from Gui.PIL.viewer_thumbs import makeThumbs, ViewOne
+from viewer_thumbs import makeThumbs, ViewOne
 
 
 def viewer(imgdir, kind=Toplevel, numcols=None, height=300, width=300):
@@ -46,7 +46,7 @@ def viewer(imgdir, kind=Toplevel, numcols=None, height=300, width=300):
     vbar.config(command=canvas.yview)
     hbar.config(command=canvas.xview)
     canvas.config(yscrollcommand=vbar.set)
-    canvas.comfig(xscrollcommand=hbar.set)
+    canvas.config(xscrollcommand=hbar.set)
     canvas.config(height=height, width=width)
     thumbs = makeThumbs(imgdir)
     numthumbs = len(thumbs)
@@ -64,3 +64,20 @@ def viewer(imgdir, kind=Toplevel, numcols=None, height=300, width=300):
 
     while thumbs:
         thumbsrow, thumbs = thumbs[:numcols], thumbs[numcols:]
+        colpos = 0
+        for (imgfile, imgobj) in thumbsrow:
+            photo = PhotoImage(imgobj)
+            link = Button(canvas, image=photo)
+            handler = lambda savefile=imgfile: ViewOne(imgdir, savefile)
+            link.config(command=handler, width=linksize, height=linksize)
+            link.pack(side=LEFT, expand=YES)
+            canvas.create_window(colpos, rowpos, anchor=NW, window=link, width=linksize, height=linksize)
+            colpos += linksize
+            savephotos.append(photo)
+        rowpos += linksize
+    return win, savephotos
+
+if __name__ == '__main__':
+    imgdir = 'images' if len(sys.argv) < 2 else sys.argv[1]
+    main, save = viewer(imgdir, kind=Tk)
+    main.mainloop()
