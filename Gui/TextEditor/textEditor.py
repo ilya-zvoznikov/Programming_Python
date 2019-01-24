@@ -288,7 +288,7 @@ class TextEditor:  # смешать с классом Frame, имеющим ме
         введенная пользователем (предварительно в диалог записывается
         кодировка по умолчанию)
         3) затем, если opensEncoding содержит непустую строку, применяется
-        эта кодировка: ‘latin-1’ и так далее.
+        эта кодировка: 'latin-1' и так далее.
         4) затем выполняется попытка применить кодировку
         sys.getdefaultencoding()
         5) в крайнем случае выполняется чтение в двоичном режиме и
@@ -312,7 +312,7 @@ class TextEditor:  # смешать с классом Frame, имеющим ме
 
         # применить известную кодировку, если указана
         # (например, из заголовка сообщения электронной почты)
-        text = None  # пустой файл = ‘’ = False: проверка на None!
+        text = None  # пустой файл = '' = False: проверка на None!
         if loadEncode:
             try:
                 text = open(file, 'r', encoding=loadEncode).read()
@@ -408,7 +408,7 @@ class TextEditor:  # смешать с классом Frame, имеющим ме
         пользователем (предлагать известную в качестве значения по
         умолчанию?)
         3) если savesEncoding - непустая строка, применить эту кодировку:
-        ‘utf-8’ и так далее
+        'utf-8' и так далее
         4) в крайнем случае применить sys.getdefaultencoding()
         :param forcefile:
         :return:
@@ -480,3 +480,373 @@ class TextEditor:  # смешать с классом Frame, имеющим ме
                 self.text.edit_modified(0)  # 2.0: сбросить флаг изменений
                 self.knownEncoding = encpick  # 2.1: запомнить кодировку
                 # не сбрасывать стеки undo/redo!
+
+    def onNew(self):
+        """
+        запускает редактирование совершенно нового файла в текущем окне;
+        смотрите метод onClone, который вместо этого создает независимое окно
+        редактирования;
+        :return:
+        """
+        if self.text_edit_modified():  # 2.0
+            if not askyesno('PyEdit', 'Text has changed: discard changes?'):
+                return
+
+        self.setFileName(None)
+        self.clearAllText()
+        self.text.edit_reset()  # 2.0: очистить стеки undo/redo
+        self.text.edit_modified(0)  # 2.0: сбросить флаг наличия изменений
+        self.knownEncoding = None  # 2.1: кодировка неизвестна
+
+    def onQuit(self):
+        """
+        вызывается выбором операции Quit в меню/панели инструментов и щелчком
+        на кнопке X в заголовке окна;
+        2.1: не завершать приложение при наличии несохраненных изменений;
+        2.0: не выводить запрос на подтверждение, если нет изменений в self;
+        перемещен в классы окон верхнего уровня ниже, так как его
+        реализация может зависеть от особенностей использования: операция Quit
+        в графическом интерфейсе может вызывать метод quit() для завершения,
+        destroy() – чтобы просто закрыть окно Toplevel, Tk или фрейм
+        с редактором, эта операция может даже вообще не предоставляться,
+        если редактор присоединяется, как компонент; проверяет self на наличие
+        несохраненных изменений, а если предполагается вызов метода quit(),
+        главные окна должны также проверить наличие несохраненных изменений
+        в других окнах, присутствующих в глобальном списке процесса;
+        :return:
+        """
+
+        assert False, 'onQuit must be defined in window-specific subclass'
+
+    def text_edit_modified(self):
+        """
+        2.1: теперь действует! кажется, проблема заключалась в типе bool
+        результата в tkinter;
+        2.0: self.text.edit_modified() не работает в Python 2.4: выполнить
+        проверку вручную;
+        :return:
+        """
+        return self.text.edit_modified()
+
+    ##########################################################################
+    # Операции меню Edit
+    ##########################################################################
+
+    def onUndo(self):  # 2.0
+        try:  # tk8.4 поддерживает стеки undo/redo
+            self.text.edit_undo()  # возбуждает исключение, если стеки пустые
+        except TclError:  # меню открывается для быстрого доступа к операциям
+            showinfo('PyEdit', 'Nothing to undo')
+
+    def onRedo(self):  # 2.0: возврат отмененной операции редактирования
+        try:
+            self.text.edit_redo()
+        except TclError:
+            showinfo('PyEdit', 'Nothing to redo')
+
+    def onCopy(self):  # получить текст, выделенный мышью
+        if not self.text.tag_ranges(SEL):  # сохранить в системном буфере
+            showerror('PyEdit', 'No text selected')
+        else:
+            text = self.text.get(SEL_FIRST, SEL_LAST)
+            self.clipboard_clear()
+            self.clipboard_append(text)
+
+    def onDelete(self):  # удалить выделенный текст без сохранения
+        if not self.text.tag_ranges(SEL):
+            showerror('PyEdit', 'No text selected')
+        else:
+            self.text.delete(SEL_FIRST, SEL_LAST)
+
+    def onCut(self):
+        if not self.text.tag_ranges(SEL):
+            showerror('PyEdit', 'No text selected')
+        else:
+            self.onCopy()  # сохранить и удалить выделенный текст
+            self.onDelete()
+
+    def onPaste(self):
+        try:
+            text = self.selection_get(selection='CLIPBOARD')
+        except TclError:
+            showerror('PyEdit', 'Nothing to paste')
+            return
+        self.text.insert(INSERT, text)  # вставить в текущую позицию курсора
+        self.text.tag_remove(SEL, '1.0', END)
+        self.text.tag_add(SEL, INSERT + '-%dc' % len(text), INSERT)
+        self.text.see(INSERT)  # выделить, чтобы можно было вырезать
+
+    def onSelectAll(self):
+        self.text.tag_add(SEL, '1.0', END + '-1c')  # выделить весь текст
+        self.text.mark_set(INSERT, '1.0')  # переместить позицию в начало
+        self.text.see(INSERT)  # прокрутить в начало
+
+    ##########################################################################
+    # Операции меню Search
+    # ЗАГЛУШКИ!!! ДОПИСАТЬ!!!
+    ##########################################################################
+
+    def onGoto(self, forceline=None):
+        pass
+
+    def onFind(self, lastkey=None):
+        pass
+
+    def onRefind(self):
+        pass
+
+    def onChange(self):
+        pass
+
+    def onDoChange(self, findtext, changeto):
+        pass
+
+    def onGrep(self):
+        pass
+
+    def onDoGrep(self, dirname, filenamepatt, grepkey, encoding):
+        pass
+
+    def grepThreadProducer(self, filenamepatt, dirname, grepkey, encoding, myqueue):
+        pass
+
+    def grepThreadConsumer(self, grepkey, encoding, myqueue, mypopup):
+        pass
+
+    def grepMatchesList(self, matches, grepkey, encoding):
+        pass
+
+    ##########################################################################
+    # Операции меню Tools
+    # ЗАГЛУШКИ!!! ДОПИСАТЬ!!!
+    ##########################################################################
+
+    def onFontList(self):
+        pass
+
+    def onColorList(self):
+        pass
+
+    def onPickFg(self):
+        pass
+
+    def onPickBg(self):
+        pass
+
+    def pickColor(self, part):
+        pass
+
+    def onInfo(self):
+        pass
+
+    def onClone(self, makewindow=True):
+        pass
+
+    def onRunCode(self, parallelmode=True):
+        pass
+
+    def onPickFont(self):
+        pass
+
+    def onDoFont(self, family, size, style):
+        pass
+
+    ##########################################################################
+    # Прочие утилиты, полезные за пределами этого класса
+    ##########################################################################
+
+    def isEmpty(self):
+        return not self.getAllText()
+
+    def getAllText(self):
+        return self.text.get('1.0', END + '-1c')  # извлечь текст как строку str
+
+    def setAllText(self, text):
+        """
+        вызывающий: должен предварительно вызвать self.update(), если только
+        что был прикреплен, иначе начальная позиция может оказаться не в
+        первой, а во второй строке (2.1; ошибка Tk?)
+        :param text:
+        :return:
+        """
+        self.text.delete('1.0', END)  # записать текстовую строку в виджет
+        self.text.insert(END, text)  # или '1.0'; текст = bytes или str
+        self.text.mark_set(INSERT, '1.0')  # переместить точку ввода в начало
+        self.text.see(INSERT)
+
+    def clearAllText(self):
+        self.text.delete('1.0', END)
+
+    def getFileName(self):
+        return self.currfile
+
+    def setFileName(self, name):  # смотрите также: onGoto(linenum)
+        self.currfile = name  # для последующего сохранения
+        self.filelabel.config(text=str(name))
+
+    def senKnownEncoding(self, encoding='utf-8'):  # 2.1: для сохранения
+        self.knownEncoding = encoding  # иначе будут использованы настройки, запрос?
+
+    def setBg(self, color):
+        self.text.config(bg=color)  # для установки вручную из программы
+
+    def setFg(self, color):
+        self.text.config(fg=color)  # 'black', шестнадцатеричная строка
+
+    def setFont(self, font):
+        self.text.config(font=font)  # ('семейство', 'размер', 'стиль')
+
+    def setHeight(self, lines):  # по умолчанию = 24 строки x 80 символов
+        self.text.config(height=lines)  # можно также взять из textCongif.py
+
+    def setWidth(self, chars):
+        self.text.config(width=chars)
+
+    def clearModified(self):
+        self.text.edit_modified(0)  # сбросить флаг наличия изменений
+
+    def isModified(self):  # были изменения с момента
+        return self.text_edit_modified()  # последнего сброса флага?
+
+    def help(self):
+        showinfo('About PyEdit', helptext % ((Version,) * 2))
+
+
+# -----------------------------------------------------------------------------
+# 2.1: в quit(), не завершать без предупреждения, если в процессе открыты
+# другие окна редактора и в них имеются несохраненные изменения - изменения
+# будут потеряны, потому что все остальные окна тоже закрываются, включая
+# множественные родительские окна Tk, включающие редактор; для слежения за
+# всеми окнами PyEdit используется список экземпляров, созданных в процессе;
+# это может оказаться чрезмерной мерой (если вместо quit() вызывается
+# destroy(), когда достаточно проверить только дочернее окно редактирования
+# уничтожаемого родителя), но лучше перестраховаться; метод onQuit перемещен
+# сюда, потому что его реализация отличается для окон разных типов и может
+# присутствовать не во всех окнах;
+#
+# предполагается, что TextEditorMainPopup никогда не будет играть роль
+# родителя для других окон редактирования - дочерние виджеты Toplevel
+# уничтожаются вместе со своими родителями; это не позволяет предотвратить
+# закрытие из-за пределов классов PyEdit (метод quit в tkinter доступен
+# во всех виджетах, и любой виджет может быть родителем для Toplevel!);
+# ответственность за проверку наличия изменений в содержимом редактора
+# полностью возлагается на клиента; обратите внимание, что в данной ситуации
+# привязка события <Destroy> не даст ровным счетом ничего, потому что его
+# обработчик не может выполнять операции с графическим интерфейсом, такие как
+# проверка наличия изменений и извлечение текста, - дополнительную информацию
+# об этом событии смотрите в книге и в модуле destroyer.py;
+# -----------------------------------------------------------------------------
+
+########################################
+# когда текстовый редактор владеет окном
+########################################
+
+class TextEditorMain(TextEditor, GuiMakerWindowMenu):
+    """
+    главное окно редактора PyEdit, которое вызывает метод quit() при
+    выполнении операции Quit графического интерфейса для завершения
+    приложения и конструирует меню в окне; родителем может быть окно Tk,
+    по умолчанию, окно Tk, создаваемое явно, или объект Toplevel:
+    родитель должен быть окном и, вероятно, окном Tk, чтобы избежать закрытия
+    без предупреждения вместе с родителем; при выполнении операции Quit
+    графического интерфейса все главные окна PyEdit проверяют остальные окна
+    PyEdit, открытые в процессе, на наличие несохраненных изменений, поскольку
+    вызов метода quit() здесь приведет к завершению всего приложения; фрейм
+    редактора необязательно должен занимать окно целиком (окно может включать
+    и другие компоненты: смотрите PyView), но его операция Quit завершает
+    программу; метод onQuit вызывается операцией Quit, выполняемой щелчком на
+    кнопке в панели инструментов, выбором пункта в меню File, а также щелчком
+    на кнопке X в заголовке окна;
+    """
+
+    def __init__(self, parent=None, loadFirst='', loadEncode=''):
+        # редактор занимает все родительское окно
+        GuiMaker.__init__(self, parent)  # использует главное меню окна
+        TextEditor.__init__(self, loadFirst, loadEncode)  # фрейм GuiMaker прикрепляет себя сам
+
+        self.master.title('PyEdit ' + Version)  # заголовок, кнопка X, если
+        self.master.iconname('PyEdit')  # выполняется как отдельная
+        self.master.protocol('WM_DELETE_WINDOW', self.onQuit)  # программа
+        TextEditor.editwindows.append(self)
+
+    def onQuit(self):  # вызывается операцией Quit
+        close = not self.text_edit_modified()  # проверить себя, запросить, проверить другие
+        if not close:
+            close = askyesno('PyEdit', 'Text changed: quit and discard changes?')
+        if close:
+            windows = TextEditor.editwindows
+            changed = [w for w in windows if w != self and w.text_edit_modified()]
+            if not changed:
+                GuiMaker.quit(self)  # завершить все приложение, независимо от типа виджета
+            else:
+                numchange = len(changed)
+                verify = '%s other edit window%s changed: '
+                verify += 'quit and discard anyhow?'
+                verify = verify % (numchange, 's' if numchange > 1 else '')
+                if askyesno('PyEdit', verify):
+                    GuiMaker.quit(self)
+
+
+class TextEditorMainPopup(TextEditor, GuiMakerWindowMenu):
+    # ЗАГЛУШКА!!! ДОПИСАТЬ!!!
+    """
+    всплывающее окно PyEdit, которое вызывает метод destroy() при выполнении
+    операции Quit графического интерфейса, закрывает только себя и создает
+    меню в окне; создает собственного родителя Toplevel, который является
+    дочерним для окна Tk по умолчанию (если передается значение None) или для
+    другого указанного окна или виджета (например, для фрейма);
+    добавляется в список для проверки при закрытии любого главного окна
+    PyEdit; если будет создано главное окно PyEdit, родитель данного окна
+    также должен быть родителем главного окна PyEdit, чтобы оно не было
+    закрыто без предупреждения; метод onQuit вызывается операцией Quit,
+    выполняемой щелчком на кнопке в панели инструментов, выбором пункта в меню
+    File, а также щелчком на кнопке X в заголовке окна;
+    """
+
+    def __init__(self, parent=None, loadFirst='', winTitle='', loadEncode=''):
+        # создать собственное окно
+        # self.popup = Toplevel(parent)
+        # GuiMaker.__init__(self, self.popup)  # использует главное меню окна
+        TextEditor.__init__(self, loadFirst, loadEncode)  # фрейм в новом окне
+        # assert self.master == self.popup
+        pass
+
+    def onQuit(self):
+        pass
+
+    def onClone(self):
+        pass
+
+
+###########################################
+# когда редактор встраивается в другое окно
+# ДАЖЕ НЕ НАЧИНАЛ!!!
+###########################################
+
+##############################################################################
+# запуск как самостоятельной программы
+##############################################################################
+
+def testPopup():
+    # проверку запуска как компонента смотрите в PyView и PyMail
+    root = Tk()
+    TextEditorMainPopup(root)
+    TextEditorMainPopup(root)
+    Button(root, text='More', command=TextEditorMainPopup).pack(fill=X)
+    Button(root, text='Quit', command=root.quit).pack(fill=X)
+    root.mainloop()
+
+
+def main():
+    try:
+        fname = sys.argv[1]
+    except IndexError:
+        fname = None
+
+    TextEditorMain(loadFirst=fname).pack(expand=YES, fill=BOTH)
+    mainloop()
+
+
+if __name__ == '__main__':
+    # testPopup()
+    main()
