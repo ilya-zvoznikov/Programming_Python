@@ -587,10 +587,30 @@ class TextEditor:  # смешать с классом Frame, имеющим ме
     ##########################################################################
 
     def onGoto(self, forceline=None):
-        pass
+        line = forceline or askinteger('PyEdit', 'Enter line number')
+        self.text.update()
+        self.text.focus()
+        if line is not None:
+            maxindex = self.text.index(END + '-1c')
+            maxline = int(maxindex.split('.')[0])
+            if line > 0 and line <= maxline:
+                self.text.mark_set(INSERT, '%d.0' % line)  # перейти к строке
+                self.text.tag_remove(SEL, '1.0', END)  # снять выделение
+                self.text.tag_add(SEL, INSERT, 'insert + 1l')  # выделить строку
+                self.text.see(INSERT)  # прокрутить до строки
+            else:
+                showerror('PyEdit', 'Bad line number')
 
     def onFind(self, lastkey=None):
-        pass
+        key = lastkey or askstring('PyEdit', 'Enter search string')
+        self.text.update()
+        self.text.focus()
+        self.lastfind
+
+##########################################################################################
+# ТУТ ОСТАНОВИЛСЯ
+##########################################################################################
+
 
     def onRefind(self):
         pass
