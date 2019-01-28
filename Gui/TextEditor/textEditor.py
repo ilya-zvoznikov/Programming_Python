@@ -605,18 +605,46 @@ class TextEditor:  # смешать с классом Frame, имеющим ме
         key = lastkey or askstring('PyEdit', 'Enter search string')
         self.text.update()
         self.text.focus()
-        self.lastfind
-
-##########################################################################################
-# ТУТ ОСТАНОВИЛСЯ
-##########################################################################################
-
+        self.lastfind = key
+        if key:  # 2.0: без учета регистра символов
+            nocase = configs.get('caseinsens', True)  # 2.0: настройки
+            where = self.text.search(key, INSERT, END, nocase=nocase)
+            if not where:  # не переходить в начало
+                showerror('PyEdit', 'String not found')
+            else:
+                pastkey = where + '+%dc' % len(key)  # позиция после ключа
+                self.text.tag_remove(SEL, '1.0', END)  # позиция после ключа
+                self.text.tag_remove(SEL, '1.0', END)  # снять выделение
+                self.text.tag_add(SEL, where, pastkey)  # выделить ключ
+                self.text.mark_set(INSERT, pastkey)  # для след. поиска
+                self.text.see(where)  # прокрутить экран
 
     def onRefind(self):
-        pass
+        self.onFind(self.lastfind)
 
     def onChange(self):
-        pass
+        """
+        немодальный диалог поиска с заменой 2.1: поля ввода диалога передаются обработчику, допускается
+        открывать одновременно несколько диалогов поиска с заменой
+        """
+        new = Toplevel(self)
+        new.title('PyEdit - change')
+        Label(new, text='Find text?', relief=RIDGE, width=15).grid(row=0, column=0)
+        Label(new, text='Change to?', relief=RIDGE, width=15).grid(row=1, column=0)
+        entry1 = Entry(new)
+        entry2 = Entry(new)
+        entry1.grid(row=0, column=1, sticky=EW)
+        entry2.grid(row=1, column=1, sticky=EW)
+
+        def onFind():  # использует полу ввода из внешней области видимости
+            self.onFind(entry1.get())  # вызов обработчика диалога поиска
+
+        def onApply():
+            self.onDoChange(entry1.get(), entry2.get())
+
+        Button(new, text='Find', command=onFind).grid(row=0, column=2, sticky=EW)
+        Button(new, text='Apply', command=onApply).grid(row=1, column=2, sticky=EW)
+        new.columnconfigure(1, weight=1)  # растягиваемые поля ввода
 
     def onDoChange(self, findtext, changeto):
         pass
