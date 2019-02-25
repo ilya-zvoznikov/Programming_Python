@@ -2,7 +2,7 @@
 Простой компонент просмотра текста или содержимого файла
 """
 
-print('PP4E scrolledtext')
+print('untitled scrolledtext')
 from tkinter import *
 
 

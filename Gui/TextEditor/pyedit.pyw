@@ -18,5 +18,5 @@ import sys, os
 
 mydir = os.path.dirname(sys.argv[0])  # использовать каталог сценария для open, sys.path
 
-sys.path.insert(1, os.sep.join([mydir] + ['..'] * 3))  # импорт: PP4E – корень, 3 уровнями выше
+sys.path.insert(1, os.sep.join([mydir] + ['..'] * 3))  # импорт: untitled – корень, 3 уровнями выше
 exec(open(os.path.join(mydir, 'textEditor.py')).read())
