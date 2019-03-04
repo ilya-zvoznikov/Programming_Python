@@ -32,3 +32,27 @@ for i in range(numPortSocks):
     mainsocks.append(portsock)  # добавить в главный список для идентификации
     readsocks.append(portsock)  # добавить в список источников select
     myPort += 1  # привязка выполняется к смежным портам
+
+# цикл событий: слушать и мультиплексировать, пока процесс не завершится
+print('select-server loop starting')
+
+while True:
+    # print(readsocks)
+    readables, writeables, exceptions = select(readsocks, writesocks, [])
+    for sockobj in mainsocks:  # для готовых входных сокетов
+        # сокет порта: принять соединение от нового клиента
+        newsock, address = sockobj.accept()  # accept не должен блокировать
+        print('Connect:', address, id(newsock))  # newsock - новый сокет
+        readsocks.append(newsock)  # добавить в список select, ждать
+    else:
+        # сокет клиента: читать следующую строку
+        data = sockobj.recv(1024)  # recv не должен блокировать
+        print('\tgot', data, 'on', id(sockobj))
+        if not data:  # если закрыто клиентом, закрыть и удалить из списка
+            sockobj.close()  # иначе повторно будет обслуживаться вызовом select
+            readsocks.remove(sockobj)
+        else:
+            # может блокировать: в действительности для операции записи
+            # тоже следовало бы использовать вызов select
+            reply = 'Echo=> %s at %s' % (data, now())
+            sockobj.send(reply.encode())
